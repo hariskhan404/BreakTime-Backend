@@ -14,36 +14,38 @@ const { warehouseClaimsCountService } = require("./claimsService");
 const { uploadToCloudinary } = require("../helpers/imgUploadHelper");
 const { convertToWebPBuffer } = require("../helpers/webpConverterHelper");
 
-// Service to handle image upload
 const inventoryUploadService = async (file) => {
+  console.log('File MIME type:', file);
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
     throw Boom.unsupportedMediaType('Invalid file type. Only jpg, png, jpeg, webp are allowed.');
   }
   const imageBuffer = await file.toBuffer();
   const webpBuffer = (file.mimetype !== 'image/webp') ? await convertToWebPBuffer(imageBuffer) : imageBuffer;
   const upload = await uploadToCloudinary(webpBuffer);
-  return upload.secure_url; // Assuming the URL is stored in 'secure_url'
+  return upload; // Assuming the URL is stored in 'secure_url'
 };
 
-// Service to handle both file and form data
 const addInventoryServices = async (file, formData) => {
+  console.log("+++++++++++++++++++");
   const imageUrl = await inventoryUploadService(file);
+  
+  
 
   const inventoryData = {
     ...formData,
     image_url: imageUrl,
   };
 
-  // Save inventory data to the database
   await saveInventoryData(inventoryData);
   return inventoryData;
 };
 
-// Placeholder function for saving inventory data
 const saveInventoryData = async (inventoryData) => {
   // Replace with actual implementation for saving data to the database
   console.log('Inventory data saved:', inventoryData);
+  // Example: await inventoryRepository.addInventory(inventoryData);
 };
+
 
 const dashboardDetails = async (workplaceId, workplace_type) => {
   const workplace = await getWorkplace({

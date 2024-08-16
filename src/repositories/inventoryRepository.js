@@ -11,19 +11,16 @@ const { dataSource } = require("../../infrastructure/postgres");
 //   return await inventoryRepository.save(newInventory);
 // };
 
-
 const addInventory = async (inventoryData) => {
   const inventoryRepository = dataSource.getRepository("Inventory");
   const productRepository = dataSource.getRepository("Product");
   const categoryRepository = dataSource.getRepository("Category");
   const batchRepository = dataSource.getRepository("Batches");
 
-  // Extracting necessary data from inventoryData
   const {
     image_url,
     product_name,
     category,
-    subcategory,
     quantity,
     units,
     expiry_date,
@@ -33,28 +30,24 @@ const addInventory = async (inventoryData) => {
     barcode_piece,
   } = inventoryData;
 
-  // Find or create the product
   let product = await productRepository.findOne({ where: { title: product_name } });
   if (!product) {
     product = productRepository.create({ title: product_name, image_url, barcode_box, barcode_piece });
     await productRepository.save(product);
   }
 
-  // Find or create the category
   let productCategory = await categoryRepository.findOne({ where: { name: category } });
   if (!productCategory) {
     productCategory = categoryRepository.create({ name: category });
     await categoryRepository.save(productCategory);
   }
 
-  // Find or create the batch
   let batch = await batchRepository.findOne({ where: { badge_number } });
   if (!batch) {
     batch = batchRepository.create({ expiry_date, badge_number });
     await batchRepository.save(batch);
   }
 
-  // Create a new inventory item
   const newInventory = inventoryRepository.create({
     product,
     category: productCategory,
@@ -64,7 +57,6 @@ const addInventory = async (inventoryData) => {
     batches: [batch],
   });
 
-  // Save the new inventory item to the database
   return await inventoryRepository.save(newInventory);
 };
 

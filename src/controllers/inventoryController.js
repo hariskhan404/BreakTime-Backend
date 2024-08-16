@@ -9,7 +9,6 @@ const {
   allWarehouseInventoryCount,
 } = require("../services/inventoryService");
 
-// Combined and modified addInventory function
 const addInventory = async (request, response) => {
   logger.info("Received request");
 
@@ -17,12 +16,35 @@ const addInventory = async (request, response) => {
     const parts = request.parts(); // Retrieve all parts from the multipart form-data
     let file = null;
     const formData = {};
-
+    
+    
     for await (const part of parts) {
       if (part.file) {
-        file = part.file; // Save the file reference
+        console.log("parttt", await part.toBuffer());
+        file = part;
       } else {
         formData[part.fieldname] = part.value; // Collect form data
+      }
+    }
+    console.log("===================");
+    console.log(formData);
+
+    // Manual validation of formData and file
+    const requiredFields = [
+      "product_name",
+      "category",
+      "quantity",
+      "units",
+      "expiry_date",
+      "threshhold_value",
+      "badge_number",
+      "barcode_box",
+      "barcode_piece",
+    ];
+
+    for (const field of requiredFields) {
+      if (!formData[field]) {
+        throw new Error(`Missing required field: ${field}`);
       }
     }
 
@@ -45,6 +67,7 @@ const addInventory = async (request, response) => {
     });
   }
 };
+
 
 const getDashboardDetails = async (request, response) => {
   try {
