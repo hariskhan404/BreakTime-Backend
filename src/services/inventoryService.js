@@ -28,11 +28,11 @@ const inventoryUploadService = async (file) => {
 const addInventoryServices = async (file, formData) => {
   console.log("+++++++++++++++++++");
   const imageUrl = await inventoryUploadService(file);
-  
-  
 
   const inventoryData = {
     ...formData,
+    // pack_of: units,
+    unit_price: formData.selling_price / formData.units,
     image_url: imageUrl,
   };
 
@@ -41,11 +41,15 @@ const addInventoryServices = async (file, formData) => {
 };
 
 const saveInventoryData = async (inventoryData) => {
-  // Replace with actual implementation for saving data to the database
-  console.log('Inventory data saved:', inventoryData);
-  // Example: await inventoryRepository.addInventory(inventoryData);
+  try {
+    const savedInventory = await addInventory(inventoryData);
+    console.log('Inventory data saved:', savedInventory);
+    return savedInventory;
+  } catch (error) {
+    console.error('Error saving inventory data:', error);
+    throw error;
+  }
 };
-
 
 const dashboardDetails = async (workplaceId, workplace_type) => {
   const workplace = await getWorkplace({

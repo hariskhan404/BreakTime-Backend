@@ -1,69 +1,110 @@
 const _ = require("lodash");
 const Boom = require("@hapi/boom");
 const { dataSource } = require("../../infrastructure/postgres");
-
-// Function to add a new inventory item
-// const addInventory = async (inventoryData) => {
-//   const inventoryRepository = dataSource.getRepository("Inventory");
-//   // Create a new inventory item with the provided data
-//   const newInventory = inventoryRepository.create(inventoryData);
-//   // Save the new inventory item to the database
-//   return await inventoryRepository.save(newInventory);
-// };
-
 const addInventory = async (inventoryData) => {
   const inventoryRepository = dataSource.getRepository("Inventory");
   const productRepository = dataSource.getRepository("Product");
   const categoryRepository = dataSource.getRepository("Category");
+  const subCategoryRepository = dataSource.getRepository("SubCategory");
   const batchRepository = dataSource.getRepository("Batches");
+  const warehouseRepository = dataSource.getRepository("Warehouse");
 
   const {
     image_url,
     product_name,
-    category,
+    category_id,
+    sub_category_id,
     quantity,
     units,
     expiry_date,
     threshhold_value,
-    badge_number,
+    batch_number,
     barcode_box,
     barcode_piece,
+    unit_price,
+    selling_price,
+    warehouse_id,
   } = inventoryData;
+
+  console.log("======");
+  console.log(inventoryData);
+
+  const productCategory = await categoryRepository.findOne({ where: { id: category_id } });
+  if (!productCategory) {
+    throw new Error(`Category with id ${category_id} not found.`);
+  }
+
+  const productSubCategory = await subCategoryRepository.findOne({ where: { id: sub_category_id } });
+  if (!productSubCategory) {
+    throw new Error(`Sub-category with id ${sub_category_id} not found.`);
+  }
+
+  if (unit_price == null) {
+    throw new Error("Unit price is required.");
+  }
+
+  if (selling_price == null) {
+    throw new Error("Selling price is required.");
+  }
 
   let product = await productRepository.findOne({ where: { title: product_name } });
   if (!product) {
-    product = productRepository.create({ title: product_name, image_url, barcode_box, barcode_piece });
+    product = productRepository.create({
+      title: product_name,
+      thumbnail_image_url: image_url,
+      box_barcode: barcode_box,
+      unit_barcode: barcode_piece,
+      category: productCategory,
+      sub_category: productSubCategory,
+      category_id: productCategory.id,
+      sub_category_id: productSubCategory.id,
+      
+      pack_of: units,
+      unit_price,
+      selling_price
+    });
     await productRepository.save(product);
+  } else {
+    if (!product.category || !product.sub_category) {
+      product.category = productCategory;
+      product.sub_category = productSubCategory;
+      await productRepository.save(product);
+    }
   }
 
-  let productCategory = await categoryRepository.findOne({ where: { name: category } });
-  if (!productCategory) {
-    productCategory = categoryRepository.create({ name: category });
-    await categoryRepository.save(productCategory);
+  const productId = product.id;
+  const warehouse = await warehouseRepository.findOne({ where: { id: warehouse_id } });
+  if (!warehouse) {
+    throw new Error(`Warehouse with id ${warehouse_id} not found.`);
   }
+  const warehouseId = warehouse.id;
 
-  let batch = await batchRepository.findOne({ where: { badge_number } });
+  let batch = await batchRepository.findOne({ where: { batch_number, product: { id: productId } } });
   if (!batch) {
-    batch = batchRepository.create({ expiry_date, badge_number });
+    batch = batchRepository.create({
+      expiry_date,
+      batch_number,
+      quantity,
+      product: { id: productId },
+      warehouse: { id: warehouseId }
+    });
     await batchRepository.save(batch);
   }
 
   const newInventory = inventoryRepository.create({
     product,
-    category: productCategory,
+    warehouse,
     quantity,
     units,
     low_stock_threshold: threshhold_value,
     batches: [batch],
+    unit_price,
+    selling_price,
   });
 
   return await inventoryRepository.save(newInventory);
 };
 
-
-
-
-// Retrieves the count of low stock items for a specific warehouse.
 async function getLowStockItemsCount(warehouse_id) {
   const inventoryRepository = dataSource.getRepository("Inventory");
   const lowStockItems = await inventoryRepository.query(
@@ -75,7 +116,6 @@ async function getLowStockItemsCount(warehouse_id) {
   return lowStockItems[0];
 }
 
-// Retrieves the count of out of stock items for a specific warehouse.
 async function getOutOfStockCount(warehouse_id) {
   const inventoryRepository = dataSource.getRepository("Inventory");
   const outOfStock = await inventoryRepository.query(
@@ -87,7 +127,6 @@ async function getOutOfStockCount(warehouse_id) {
   return outOfStock[0];
 }
 
-// Retrieves the count of items with short expiry dates for a specific warehouse.
 const getShortExpiryCount = async (warehouseId, expiryThreshold) => {
   const repository = dataSource.getRepository("Batches");
   const result = await repository
@@ -103,7 +142,6 @@ const getShortExpiryCount = async (warehouseId, expiryThreshold) => {
   return result;
 };
 
-// Retrieves the items with short expiry dates for a specific warehouse.
 const getShortExpiryItems = async (warehouseId, expiryThreshold) => {
   const repository = dataSource.getRepository("Batches");
   const result = await repository

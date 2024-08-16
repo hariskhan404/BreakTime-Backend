@@ -16,30 +16,31 @@ const addInventory = async (request, response) => {
     const parts = request.parts(); // Retrieve all parts from the multipart form-data
     let file = null;
     const formData = {};
-    
-    
+
     for await (const part of parts) {
       if (part.file) {
-        console.log("parttt", await part.toBuffer());
+        console.log("File part:", await part.toBuffer());
         file = part;
       } else {
         formData[part.fieldname] = part.value; // Collect form data
       }
     }
-    console.log("===================");
-    console.log(formData);
+
+    console.log("FormData:", formData);
 
     // Manual validation of formData and file
     const requiredFields = [
       "product_name",
-      "category",
+      "category_id",
+      "sub_category_id",
       "quantity",
       "units",
       "expiry_date",
       "threshhold_value",
-      "badge_number",
+      "batch_number",
       "barcode_box",
       "barcode_piece",
+      "selling_price"
     ];
 
     for (const field of requiredFields) {
@@ -51,6 +52,11 @@ const addInventory = async (request, response) => {
     if (!file) {
       throw new Error("No file uploaded");
     }
+
+    // // Ensure sub_category_id is a valid number
+    // if (isNaN(formData.sub_category_id)) {
+    //   throw new Error("sub_category_id must be a valid number");
+    // }
 
     const result = await addInventoryServices(file, formData);
 
